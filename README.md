@@ -87,3 +87,5 @@ uma vez.
 Este projeto é original — nenhuma identidade visual, nome ou código de
 terceiros (ex.: Mangu Translate) foi copiado. Apenas o conceito funcional
 (navegador + tradução de imagem) foi usado como referência.
+
+<!-- ci-trigger-diagnostic -->
