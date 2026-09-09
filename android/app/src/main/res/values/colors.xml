@@ -1,0 +1,10 @@
+<resources>
+    <color name="noctis_bg">#0B0F14</color>
+    <color name="noctis_surface">#111820</color>
+    <color name="noctis_card">#18212B</color>
+    <color name="noctis_border">#263340</color>
+    <color name="noctis_ink">#F1F5F9</color>
+    <color name="noctis_muted">#94A3B8</color>
+    <color name="noctis_accent">#00E5A0</color>
+    <color name="noctis_accent_dark">#00B981</color>
+</resources>
