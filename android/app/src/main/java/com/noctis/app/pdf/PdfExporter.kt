@@ -1,81 +1,34 @@
 package com.noctis.app.pdf
 
-import android.os.CancellationSignal
-import android.os.ParcelFileDescriptor
-import android.print.PageRange
+import android.content.Context
 import android.print.PrintAttributes
-import android.print.PrintDocumentAdapter
-import android.print.PrintDocumentInfo
+import android.print.PrintManager
 import android.webkit.WebView
-import kotlinx.coroutines.suspendCancellableCoroutine
-import java.io.File
-import kotlin.coroutines.resume
 
 /**
- * Exports the currently-translated page to a PDF file using Android's own
- * Print framework (`WebView.createPrintDocumentAdapter`) driven
- * programmatically instead of through the system print dialog — this is
- * the same mechanism "Print" uses under the hood, so page height beyond the
- * viewport, pagination and CSS print styles are all handled by the
- * platform's own renderer rather than something Noctis has to reimplement.
+ * Exports the currently-translated page to PDF using Android's own Print
+ * framework (`WebView.createPrintDocumentAdapter` + `PrintManager`).
  *
- * Requires the WebView content to already reflect the translated state
- * (mode = translated, images already swapped) at call time — the caller is
- * responsible for waiting for `__noctisIsIdle()` first, on a best-effort
- * basis, exactly like the web app's PDF route.
+ * Note on the API shape: `PrintDocumentAdapter.LayoutResultCallback` and
+ * `WriteResultCallback` cannot be instantiated by app code — their
+ * constructors are package-private to `android.print`, by design, because
+ * only the system print spooler is meant to drive a `PrintDocumentAdapter`.
+ * That means there is no public, fully headless way to render a WebView
+ * straight to a PDF file without going through `PrintManager.print(...)`,
+ * which shows the system print UI (where "Salvar como PDF" is one of the
+ * built-in destinations). This is a real Android platform constraint, not
+ * a shortcut — see docs/LIMITATIONS.md.
  */
 object PdfExporter {
 
-    suspend fun export(webView: WebView, outputFile: File): Boolean = suspendCancellableCoroutine { continuation ->
-        val adapter = webView.createPrintDocumentAdapter("noctis-pagina-traduzida")
+    fun printToPdf(context: Context, webView: WebView, jobName: String = "noctis-pagina-traduzida") {
+        val printManager = context.getSystemService(Context.PRINT_SERVICE) as PrintManager
+        val adapter = webView.createPrintDocumentAdapter(jobName)
         val attributes = PrintAttributes.Builder()
             .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
             .setResolution(PrintAttributes.Resolution("noctis", "noctis", 300, 300))
             .setMinMargins(PrintAttributes.Margins(0, 0, 0, 0))
             .build()
-
-        adapter.onLayout(
-            null,
-            attributes,
-            CancellationSignal(),
-            object : PrintDocumentAdapter.LayoutResultCallback() {
-                override fun onLayoutFinished(info: PrintDocumentInfo?, changed: Boolean) {
-                    try {
-                        val pfd = ParcelFileDescriptor.open(outputFile, ParcelFileDescriptor.MODE_CREATE or ParcelFileDescriptor.MODE_TRUNCATE or ParcelFileDescriptor.MODE_READ_WRITE)
-                        adapter.onWrite(
-                            arrayOf(PageRange.ALL_PAGES),
-                            pfd,
-                            CancellationSignal(),
-                            object : PrintDocumentAdapter.WriteResultCallback() {
-                                override fun onWriteFinished(pages: Array<out PageRange>?) {
-                                    pfd.close()
-                                    if (continuation.isActive) continuation.resume(true)
-                                }
-
-                                override fun onWriteFailed(error: CharSequence?) {
-                                    pfd.close()
-                                    if (continuation.isActive) continuation.resume(false)
-                                }
-
-                                override fun onWriteCancelled() {
-                                    pfd.close()
-                                    if (continuation.isActive) continuation.resume(false)
-                                }
-                            },
-                        )
-                    } catch (e: Exception) {
-                        if (continuation.isActive) continuation.resume(false)
-                    }
-                }
-
-                override fun onLayoutFailed(error: CharSequence?) {
-                    if (continuation.isActive) continuation.resume(false)
-                }
-
-                override fun onLayoutCancelled() {
-                    if (continuation.isActive) continuation.resume(false)
-                }
-            },
-        )
+        printManager.print(jobName, adapter, attributes)
     }
 }

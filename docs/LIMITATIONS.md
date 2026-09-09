@@ -106,6 +106,17 @@ uma limitação técnica real, não um bug escondido.
   `npx playwright install chromium` em vez de apontar para um binário
   pré-instalado de origem diferente).
 
+## PDF (Android)
+
+- `PrintDocumentAdapter.LayoutResultCallback`/`WriteResultCallback` têm
+  construtor package-private em `android.print` — apps não conseguem
+  instanciá-los. Isso significa que não existe API pública para dirigir o
+  `PrintDocumentAdapter` de uma WebView e gravar um PDF em disco de forma
+  totalmente silenciosa; o caminho suportado é `PrintManager.print(...)`,
+  que abre a UI padrão de impressão do Android (com "Salvar como PDF" como
+  um dos destinos). O botão "Baixar PDF" do app abre essa UI em vez de
+  salvar direto, diferente do comportamento silencioso do site.
+
 ## Ambiente de desenvolvimento desta sessão
 
 - O sandbox usado para construir este projeto **não tem o Android SDK

@@ -1,6 +1,5 @@
 package com.noctis.app.ui.screens
 
-import android.content.Intent
 import android.view.ViewGroup
 import android.webkit.WebView
 import androidx.compose.foundation.background
@@ -15,7 +14,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.content.FileProvider
 import com.noctis.app.NoctisApplication
 import com.noctis.app.browser.NoctisBridge
 import com.noctis.app.browser.NoctisWebViewClient
@@ -28,8 +26,6 @@ import com.noctis.app.translate.MlKitTranslationProvider
 import com.noctis.app.ui.theme.*
 import com.noctis.app.util.NoctisPreferences
 import com.noctis.app.util.normalizeToUrl
-import kotlinx.coroutines.launch
-import java.io.File
 
 @Composable
 fun TranslatorScreen(initialUrl: String, initialLang: String, onBack: () -> Unit) {
@@ -45,7 +41,6 @@ fun TranslatorScreen(initialUrl: String, initialLang: String, onBack: () -> Unit
     var progressDone by remember { mutableIntStateOf(0) }
     var progressTotal by remember { mutableIntStateOf(0) }
     var isLoading by remember { mutableStateOf(true) }
-    var pdfBusy by remember { mutableStateOf(false) }
     var navRevision by remember { mutableIntStateOf(0) } // bump to refresh canGoBack/Forward reads
 
     val session = remember { TranslationSession(targetLang = initialLang, fontScale = prefs.fontScale, translateImagesEnabled = prefs.translateImages) }
@@ -109,10 +104,10 @@ fun TranslatorScreen(initialUrl: String, initialLang: String, onBack: () -> Unit
         ) {
             IconButton(onClick = onBack) { Icon(Icons.Filled.Home, contentDescription = "Início", tint = NoctisMuted) }
             IconButton(onClick = { webView.goBack() }, enabled = canGoBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar", tint = NoctisMuted)
+                Icon(Icons.Filled.ArrowBack, contentDescription = "Voltar", tint = NoctisMuted)
             }
             IconButton(onClick = { webView.goForward() }, enabled = canGoForward) {
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Avançar", tint = NoctisMuted)
+                Icon(Icons.Filled.ArrowForward, contentDescription = "Avançar", tint = NoctisMuted)
             }
             IconButton(onClick = { webView.reload() }) {
                 Icon(Icons.Filled.Refresh, contentDescription = "Recarregar", tint = NoctisMuted)
@@ -155,24 +150,7 @@ fun TranslatorScreen(initialUrl: String, initialLang: String, onBack: () -> Unit
                 }
             }
 
-            IconButton(onClick = {
-                pdfBusy = true
-                scope.launch {
-                    val pdfDir = File(context.cacheDir, "pdfs").apply { mkdirs() }
-                    val outFile = File(pdfDir, "pagina-traduzida.pdf")
-                    val ok = PdfExporter.export(webView, outFile)
-                    pdfBusy = false
-                    if (ok) {
-                        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", outFile)
-                        val intent = Intent(Intent.ACTION_VIEW).apply {
-                            setDataAndType(uri, "application/pdf")
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        runCatching { context.startActivity(intent) }
-                    }
-                }
-            }, enabled = !pdfBusy) {
+            IconButton(onClick = { PdfExporter.printToPdf(context, webView) }) {
                 Icon(Icons.Filled.PictureAsPdf, contentDescription = "Baixar PDF", tint = NoctisAccent)
             }
         }

@@ -97,6 +97,10 @@ o cache em Room (`cache/`) em vez de um `Map` em memória — o que dá ao
 Android uma vantagem real sobre o site: o cache sobrevive a reinícios do
 app.
 
-PDF usa `WebView.createPrintDocumentAdapter`, o mesmo mecanismo por trás do
-"Imprimir" do Android — paginação e altura da página são resolvidas pelo
-próprio motor de renderização do sistema.
+PDF usa `WebView.createPrintDocumentAdapter` + `PrintManager.print(...)`, o
+mesmo mecanismo por trás do "Imprimir" do Android — paginação e altura da
+página são resolvidas pelo próprio motor de renderização do sistema. Isso
+abre a UI padrão de impressão do Android (onde "Salvar como PDF" é um dos
+destinos), em vez de salvar silenciosamente como no site — ver
+`docs/LIMITATIONS.md` para o porquê (a API do framework de impressão não
+permite gerar o arquivo sem passar pela UI do sistema).
