@@ -4,6 +4,10 @@ export interface RewriteOptions {
   pageUrl: URL;
   targetLang: string;
   fontScale: number;
+  /** Our own server origin (e.g. https://noctis.example.com), used to build
+   * an absolute URL for the injected script — see note below on why a
+   * root-relative one breaks. */
+  origin: string;
 }
 
 const NON_NAVIGABLE_SCHEMES = /^(javascript:|mailto:|tel:|#)/i;
@@ -27,7 +31,7 @@ const NON_NAVIGABLE_SCHEMES = /^(javascript:|mailto:|tel:|#)/i;
  * working, but a submitted form navigates the user away from the
  * translator. See docs/LIMITATIONS.md.
  */
-export function rewriteHtmlForProxy(html: string, { pageUrl, targetLang, fontScale }: RewriteOptions): string {
+export function rewriteHtmlForProxy(html: string, { pageUrl, targetLang, fontScale, origin }: RewriteOptions): string {
   const $ = cheerio.load(html);
 
   $('head').first().prepend(`<base href="${escapeAttr(pageUrl.href)}">`);
@@ -65,8 +69,15 @@ export function rewriteHtmlForProxy(html: string, { pageUrl, targetLang, fontSca
     </style>
   `);
 
+  // Must be an absolute URL pointing at our own origin: the <base> tag above
+  // makes the browser resolve ANY relative src/href — including a
+  // root-relative one starting with "/" — against the target site's origin,
+  // not ours. A root-relative script src here silently 404s against the
+  // proxied site instead of loading from our server (caught via a real
+  // deploy: Chrome reported it blocked by CORB after fetching the wrong
+  // origin entirely).
   $('body').append(
-    `<script src="/noctis-inject.js" defer data-target-lang="${escapeAttr(targetLang)}" data-source-url="${escapeAttr(pageUrl.href)}" data-font-scale="${fontScale}"></script>`,
+    `<script src="${escapeAttr(origin)}/noctis-inject.js" defer data-target-lang="${escapeAttr(targetLang)}" data-source-url="${escapeAttr(pageUrl.href)}" data-font-scale="${fontScale}"></script>`,
   );
 
   return $.html();

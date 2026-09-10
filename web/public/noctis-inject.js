@@ -1,7 +1,9 @@
 /**
  * Noctis translation runtime — injected into every proxied page (served
  * same-origin via /api/proxy, so fetch() calls back to /api/translate and
- * /api/ocr-translate are plain same-origin requests, no CORS involved).
+ * /api/ocr-translate are plain same-origin requests, no CORS involved —
+ * see the apiUrl() helper below for why they still need an explicit origin
+ * prefix rather than a bare "/api/..." path).
  *
  * Responsibilities:
  *  - walk text nodes and translate them in place, keeping the original
@@ -23,6 +25,17 @@
     sourceLang: 'auto',
     fontScale: Number((scriptEl && scriptEl.dataset.fontScale) || '1') || 1,
   };
+
+  // The proxied document has a <base href="..."> pointing at the ORIGINAL
+  // site so its own relative resources keep loading — but that also makes
+  // every relative URL resolve against that origin, including fetch() calls
+  // made from this script. window.location.origin is unaffected by <base>
+  // and always reflects where this document was actually served from (our
+  // own server), so every API call below must be built from it explicitly
+  // rather than using a bare "/api/..." path.
+  function apiUrl(path) {
+    return window.location.origin + path;
+  }
 
   var state = {
     mode: 'translated', // 'translated' | 'original'
@@ -107,7 +120,7 @@
 
   function translateTextBatch(entries) {
     state.pendingTextBatches++;
-    return fetch('/api/translate', {
+    return fetch(apiUrl('/api/translate'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -194,7 +207,7 @@
   }
 
   function processImage(img, src) {
-    return fetch('/api/ocr-translate', {
+    return fetch(apiUrl('/api/ocr-translate'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -296,7 +309,7 @@
       var rect = record.el.getBoundingClientRect();
       var visible = rect.bottom > -200 && rect.top < window.innerHeight + 200;
       if (!visible) return;
-      fetch('/api/ocr-translate', {
+      fetch(apiUrl('/api/ocr-translate'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -32,7 +32,12 @@ export async function GET(req: NextRequest) {
     }
 
     const html = buffer.toString('utf-8');
-    const rewritten = rewriteHtmlForProxy(html, { pageUrl, targetLang: lang, fontScale: scale });
+    const rewritten = rewriteHtmlForProxy(html, {
+      pageUrl,
+      targetLang: lang,
+      fontScale: scale,
+      origin: req.nextUrl.origin,
+    });
 
     return new NextResponse(rewritten, {
       headers: {
