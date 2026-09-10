@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { rewriteHtmlForProxy } from '../html/rewrite';
 
 const pageUrl = new URL('https://example.com/blog/post');
+const origin = 'https://noctis.example';
 
 describe('rewriteHtmlForProxy', () => {
   it('injects a base tag pointing at the source page', () => {
     const html = '<html><head></head><body>hi</body></html>';
-    const out = rewriteHtmlForProxy(html, { pageUrl, targetLang: 'pt', fontScale: 1 });
+    const out = rewriteHtmlForProxy(html, { pageUrl, targetLang: 'pt', fontScale: 1, origin });
     expect(out).toContain('<base href="https://example.com/blog/post">');
   });
 
@@ -16,7 +17,7 @@ describe('rewriteHtmlForProxy', () => {
       <a href="https://example.com/full">b</a>
       <a href="https://external.com/x">c</a>
     </body></html>`;
-    const out = rewriteHtmlForProxy(html, { pageUrl, targetLang: 'pt', fontScale: 1 });
+    const out = rewriteHtmlForProxy(html, { pageUrl, targetLang: 'pt', fontScale: 1, origin });
     // Cheerio HTML-escapes "&" as "&amp;" inside attribute values, which is
     // correct output — assert against that serialized form.
     expect(out).toContain(`/api/proxy?url=${encodeURIComponent('https://example.com/other-page')}&amp;lang=pt&amp;scale=1`);
@@ -26,7 +27,7 @@ describe('rewriteHtmlForProxy', () => {
 
   it('leaves non-navigable hrefs untouched', () => {
     const html = '<html><body><a href="javascript:void(0)">x</a><a href="#section">y</a></body></html>';
-    const out = rewriteHtmlForProxy(html, { pageUrl, targetLang: 'pt', fontScale: 1 });
+    const out = rewriteHtmlForProxy(html, { pageUrl, targetLang: 'pt', fontScale: 1, origin });
     expect(out).toContain('href="javascript:void(0)"');
     expect(out).toContain('href="#section"');
   });
@@ -36,15 +37,20 @@ describe('rewriteHtmlForProxy', () => {
       <meta http-equiv="Content-Security-Policy" content="default-src 'self'">
       <meta http-equiv="X-Frame-Options" content="DENY">
     </head><body></body></html>`;
-    const out = rewriteHtmlForProxy(html, { pageUrl, targetLang: 'pt', fontScale: 1 });
+    const out = rewriteHtmlForProxy(html, { pageUrl, targetLang: 'pt', fontScale: 1, origin });
     expect(out).not.toContain('Content-Security-Policy');
     expect(out).not.toContain('X-Frame-Options');
   });
 
-  it('injects the translation runtime script with the requested language and scale', () => {
+  it('injects the translation runtime script as an absolute URL on our own origin', () => {
     const html = '<html><body></body></html>';
-    const out = rewriteHtmlForProxy(html, { pageUrl, targetLang: 'ja', fontScale: 1.3 });
-    expect(out).toContain('src="/noctis-inject.js"');
+    const out = rewriteHtmlForProxy(html, { pageUrl, targetLang: 'ja', fontScale: 1.3, origin });
+    // Must be absolute, not root-relative: a <base> tag pointing at the
+    // proxied site would otherwise make a bare "/noctis-inject.js" resolve
+    // against THAT site's origin instead of ours (this broke translation
+    // entirely in production — see git history for the incident).
+    expect(out).toContain(`src="${origin}/noctis-inject.js"`);
+    expect(out).not.toContain('src="/noctis-inject.js"');
     expect(out).toContain('data-target-lang="ja"');
     expect(out).toContain('data-font-scale="1.3"');
   });
