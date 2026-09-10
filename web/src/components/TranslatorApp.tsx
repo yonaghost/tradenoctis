@@ -18,6 +18,12 @@ function pdfUrlFor(url: string, lang: string, scale: number): string {
   return `/api/pdf?url=${encodeURIComponent(url)}&lang=${encodeURIComponent(lang)}&scale=${scale}`;
 }
 
+function labelForLangCode(code: string): string {
+  const match = LANGUAGES.find((l) => l.code.toLowerCase() === code.toLowerCase());
+  if (match) return match.label.replace(/\s*\(.*\)$/, '');
+  return code.toUpperCase();
+}
+
 export function TranslatorApp({ initialUrl, initialLang }: Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [currentUrl, setCurrentUrl] = useState(initialUrl);
@@ -28,6 +34,7 @@ export function TranslatorApp({ initialUrl, initialLang }: Props) {
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [loading, setLoading] = useState(!!initialUrl);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [detectedSourceLang, setDetectedSourceLang] = useState<string | null>(null);
 
   const iframeSrc = currentUrl ? proxyUrlFor(currentUrl, lang, fontScale) : '';
 
@@ -38,6 +45,8 @@ export function TranslatorApp({ initialUrl, initialLang }: Props) {
         setProgress({ done: event.data.imagesDone ?? 0, total: event.data.imagesTotal ?? 0 });
       } else if (event.data.type === 'noctis-ready') {
         setLoading(false);
+      } else if (event.data.type === 'noctis-source-lang' && typeof event.data.lang === 'string') {
+        setDetectedSourceLang(event.data.lang);
       }
     }
     window.addEventListener('message', onMessage);
@@ -51,6 +60,7 @@ export function TranslatorApp({ initialUrl, initialLang }: Props) {
   function navigateTo(url: string) {
     setProgress({ done: 0, total: 0 });
     setLoading(true);
+    setDetectedSourceLang(null);
     setCurrentUrl(url);
     setAddressValue(url);
   }
@@ -83,6 +93,7 @@ export function TranslatorApp({ initialUrl, initialLang }: Props) {
   function reload() {
     setProgress({ done: 0, total: 0 });
     setLoading(true);
+    setDetectedSourceLang(null);
     iframeRef.current?.contentWindow?.location.reload();
   }
   function goHome() {
@@ -140,17 +151,23 @@ export function TranslatorApp({ initialUrl, initialLang }: Props) {
             />
           </form>
 
-          <select
-            value={lang}
-            onChange={(e) => changeLang(e.target.value)}
-            className="rounded-lg border border-noctis-border bg-noctis-card px-2 py-2 text-sm text-noctis-ink"
-          >
-            {LANGUAGES.map((l) => (
-              <option key={l.code} value={l.code}>
-                {l.label}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2 text-sm text-noctis-muted">
+            {detectedSourceLang && (
+              <span className="whitespace-nowrap">{labelForLangCode(detectedSourceLang)} →</span>
+            )}
+            <select
+              value={lang}
+              onChange={(e) => changeLang(e.target.value)}
+              title="Traduzir para"
+              className="rounded-lg border border-noctis-border bg-noctis-card px-2 py-2 text-sm text-noctis-ink"
+            >
+              {LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <button
             onClick={downloadPdf}

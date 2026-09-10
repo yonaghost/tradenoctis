@@ -88,23 +88,46 @@ uma limitação técnica real, não um bug escondido.
 ## PDF
 
 - O export de PDF no site depende de um binário Chromium acessível ao
-  processo Node (via Playwright). Isso **não está disponível de graça** em
-  todo alvo de deploy — plataformas serverless mais restritas (ex. Vercel
-  no plano Hobby) podem não suportar rodar Chromium headless sem
-  configuração adicional. Configure `PLAYWRIGHT_CHROMIUM_PATH` ou faça
-  deploy num container/VM onde o Chromium do Playwright foi instalado no
-  build (`npx playwright install chromium`).
-- Testado nesta sessão com sucesso (PDF de 2 páginas gerado corretamente a
-  partir da própria home do site) usando `playwright-core@1.63.0` +
-  `PLAYWRIGHT_CHROMIUM_PATH` explícito. Um detalhe real encontrado: builds
-  recentes do Chrome removeram o "Old Headless mode"; se o binário Chromium
-  do seu ambiente for muito mais novo que a versão do `playwright-core`
-  instalada (ou vice-versa), o lançamento do browser falha com
-  `Target page, context or browser has been closed` — a correção é manter
-  `playwright-core` numa versão compatível com o binário disponível (ou
-  deixar o Playwright baixar sua própria revisão via
-  `npx playwright install chromium` em vez de apontar para um binário
-  pré-instalado de origem diferente).
+  processo Node (via Playwright). Em plataformas serverless de verdade
+  (Vercel, AWS Lambda) não dá pra simplesmente `npx playwright install`
+  — o sistema de arquivos é somente-leitura e cada requisição pode cair
+  numa instância nova. Isso apareceu na prática: o primeiro deploy na
+  Vercel falhou com `Executable does not exist at
+  .../chromium_headless_shell.../chrome-headless-shell`.
+- **Correção aplicada**: `src/lib/pdf/renderPdf.ts` agora tenta, nesta
+  ordem: (1) `PLAYWRIGHT_CHROMIUM_PATH` explícito, (2)
+  [`@sparticuz/chromium`](https://github.com/Sparticuz/chromium) — um
+  build de Chromium empacotado especificamente para ambientes serverless
+  (o mesmo binário compactado é extraído para `/tmp` na primeira
+  requisição), (3) a resolução padrão do Playwright. `@sparticuz/chromium`
+  é a solução padrão e amplamente usada pra esse exato erro — não foi
+  inventada aqui — e foi testada nesta sessão com sucesso (gerou um PDF
+  válido de 2 páginas neste sandbox, sem precisar de
+  `PLAYWRIGHT_CHROMIUM_PATH`). O que não foi possível verificar aqui é o
+  comportamento na própria Vercel (esta sessão não tem acesso a ela) —
+  se depois do deploy o botão "Baixar PDF" ainda falhar, o próximo passo é
+  checar os logs da function no painel da Vercel.
+- Detalhe real encontrado à parte: builds recentes do Chrome removeram o
+  "Old Headless mode"; se o binário Chromium disponível for de uma geração
+  muito diferente da que o `playwright-core` instalado espera, o
+  lançamento do browser falha com `Target page, context or browser has
+  been closed` — a correção é manter `playwright-core` numa versão
+  compatível com o binário disponível.
+
+## Fetch da página alvo (bot-detection)
+
+- `fetchGuarded` (usado pelo `/api/proxy` e pela busca de imagens) envia um
+  `User-Agent` de navegador comum (Chrome/Windows) e `Accept-Language`
+  `pt-BR`, exatamente como qualquer ferramenta de tradução de página faz.
+  Isso evita bloqueios triviais por User-Agent (alguns sites devolviam 404
+  quando o User-Agent se identificava como bot). **Isso não contorna
+  proteção anti-bot de verdade** — Cloudflare/Akamai com desafio de
+  JavaScript, fingerprinting de TLS, CAPTCHAs — nenhuma quantidade de
+  cabeçalho HTTP resolve isso sem executar um browser completo do lado do
+  servidor (o que o proxy do site, por design, não faz — só o `/api/pdf`
+  roda um Chromium real). Sites fortemente protegidos contra scraping
+  podem continuar retornando uma página de bloqueio em vez do conteúdo
+  real.
 
 ## PDF (Android)
 

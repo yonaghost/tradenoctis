@@ -60,7 +60,16 @@ export async function fetchGuarded(rawUrl: string, opts: FetchGuardedOptions): P
     const res = await fetch(url, {
       signal: controller.signal,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; NoctisTranslator/0.1; +https://noctis.app)',
+        // A generic bot-style User-Agent gets blocked outright by a lot of
+        // sites (this was previously "NoctisTranslator/0.1", which some
+        // targets 404'd on sight). Presenting as an ordinary desktop
+        // Chrome — the same thing any browser-based page-translate tool
+        // does — avoids that class of false block. It does not, and
+        // cannot, get past real bot-detection (Cloudflare/Akamai JS
+        // challenges, TLS fingerprinting) — see docs/LIMITATIONS.md.
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
         ...(opts.accept ? { Accept: opts.accept } : {}),
       },
     });
