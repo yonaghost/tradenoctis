@@ -4,7 +4,7 @@ const nextConfig = {
   // tesseract.js / sharp / @napi-rs/canvas ship native or worker assets that
   // should not be bundled by webpack — they run only in the Node.js server
   // runtime (API routes), never in the browser bundle.
-  serverExternalPackages: ['tesseract.js', 'sharp', '@napi-rs/canvas'],
+  serverExternalPackages: ['tesseract.js', 'sharp', '@napi-rs/canvas', 'playwright-core', '@sparticuz/chromium'],
 };
 
 module.exports = nextConfig;

@@ -36,6 +36,7 @@
     imagesTotal: 0,
     seenImageSrcs: new Set(),
     scaleDebounceTimer: null,
+    reportedSourceLang: false,
   };
 
   var MAX_CONCURRENT_IMAGES = 3;
@@ -124,6 +125,10 @@
           record.translated = translations[i] != null ? translations[i] : entry.text;
           if (state.mode === 'translated') record.el.textContent = record.translated;
         });
+        if (json.detectedSourceLang && !state.reportedSourceLang) {
+          state.reportedSourceLang = true;
+          postToParent({ type: 'noctis-source-lang', lang: json.detectedSourceLang });
+        }
       })
       .catch(function () {
         // Fallback: keep original text visible — never blank it out.
