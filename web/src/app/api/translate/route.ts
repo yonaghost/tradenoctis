@@ -36,6 +36,9 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     // Fallback requirement: translation failure must never break the page —
     // echo the original texts back so the caller can leave them untouched.
+    // Still log server-side: returning 200 here means this failure would
+    // otherwise be invisible to any error-level log/alert monitoring.
+    console.error('[api/translate] provider failed:', err);
     return NextResponse.json(
       { translations: texts, error: err instanceof Error ? err.message : 'translation-failed' },
       { status: 200 },

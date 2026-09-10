@@ -164,7 +164,9 @@ export async function translateImage(input: TranslateImageInput): Promise<Transl
     return { hasText: true, dataUrl, width: stage.width, height: stage.height };
   } catch (err) {
     // Never propagate: any unexpected failure at any stage falls back to
-    // "keep the original image" for the caller.
+    // "keep the original image" for the caller. Still log server-side —
+    // hasText:false is otherwise indistinguishable from "no text found".
+    console.error('[image/pipeline] translateImage failed:', err);
     return { hasText: false, reason: err instanceof Error ? err.message : 'unknown-error' };
   }
 }
