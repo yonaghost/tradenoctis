@@ -10,6 +10,8 @@ export interface RenderPdfOptions {
 interface LaunchTarget {
   executablePath: string | undefined;
   args: string[];
+  /** Set when @sparticuz/chromium was attempted and failed, for diagnosability if the final launch also fails. */
+  sparticuzError?: string;
 }
 
 /**
@@ -35,10 +37,12 @@ async function resolveLaunchTarget(): Promise<LaunchTarget> {
   try {
     const sparticuzChromium = (await import('@sparticuz/chromium')).default;
     return { executablePath: await sparticuzChromium.executablePath(), args: sparticuzChromium.args };
-  } catch {
+  } catch (err) {
     // Not installed, or failed to extract (e.g. running outside a
     // serverless sandbox) — fall through to Playwright's own resolution.
-    return { executablePath: undefined, args: [] };
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[renderPdf] @sparticuz/chromium executablePath() failed, falling back:', message);
+    return { executablePath: undefined, args: [], sparticuzError: message };
   }
 }
 
@@ -49,8 +53,19 @@ async function resolveLaunchTarget(): Promise<LaunchTarget> {
  * Noctis can paper over. See docs/LIMITATIONS.md.
  */
 export async function renderTranslatedPagePdf({ pageUrl, idleTimeoutMs = 20_000 }: RenderPdfOptions): Promise<Buffer> {
-  const { executablePath, args } = await resolveLaunchTarget();
-  const browser = await chromium.launch({ executablePath, args, headless: true });
+  const { executablePath, args, sparticuzError } = await resolveLaunchTarget();
+
+  let browser;
+  try {
+    browser = await chromium.launch({ executablePath, args, headless: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      sparticuzError
+        ? `Chromium launch failed (@sparticuz/chromium also failed: ${sparticuzError}): ${message}`
+        : message,
+    );
+  }
 
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 1600 } });

@@ -103,10 +103,20 @@ uma limitação técnica real, não um bug escondido.
   é a solução padrão e amplamente usada pra esse exato erro — não foi
   inventada aqui — e foi testada nesta sessão com sucesso (gerou um PDF
   válido de 2 páginas neste sandbox, sem precisar de
-  `PLAYWRIGHT_CHROMIUM_PATH`). O que não foi possível verificar aqui é o
-  comportamento na própria Vercel (esta sessão não tem acesso a ela) —
-  se depois do deploy o botão "Baixar PDF" ainda falhar, o próximo passo é
-  checar os logs da function no painel da Vercel.
+  `PLAYWRIGHT_CHROMIUM_PATH`).
+- **Pegadinha real encontrada no primeiro teste na Vercel**: mesmo com
+  `@sparticuz/chromium` instalado, o deploy continuou falhando — porque o
+  pacote guarda o binário do Chromium como arquivos `.br` comprimidos em
+  `bin/`, não como JavaScript, e o rastreamento automático de arquivos do
+  Next.js (que decide o que empacotar em cada função serverless da Vercel)
+  não enxerga esses arquivos a partir de um `import()` dinâmico. A função
+  ia pro ar sem o binário, e `executablePath()` falhava silenciosamente
+  (caindo pro erro genérico do Playwright). Corrigido declarando
+  `outputFileTracingIncludes` em `next.config.js` para a rota `/api/pdf`,
+  forçando a inclusão de `node_modules/@sparticuz/chromium/bin/**/*` —
+  verificado localmente que o arquivo de rastreamento
+  (`.next/server/app/api/pdf/route.js.nft.json`) passou a listar os quatro
+  arquivos `.br` depois dessa mudança.
 - Detalhe real encontrado à parte: builds recentes do Chrome removeram o
   "Old Headless mode"; se o binário Chromium disponível for de uma geração
   muito diferente da que o `playwright-core` instalado espera, o

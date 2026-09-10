@@ -151,14 +151,20 @@ export function TranslatorApp({ initialUrl, initialLang }: Props) {
             />
           </form>
 
-          <div className="flex items-center gap-2 text-sm text-noctis-muted">
-            {detectedSourceLang && (
-              <span className="whitespace-nowrap">{labelForLangCode(detectedSourceLang)} →</span>
-            )}
+          <div className="flex items-center gap-1.5 whitespace-nowrap text-sm text-noctis-muted">
+            <span>
+              {detectedSourceLang ? (
+                <>
+                  De <span className="text-noctis-ink">{labelForLangCode(detectedSourceLang)}</span> para
+                </>
+              ) : (
+                'Traduzir para'
+              )}
+            </span>
             <select
               value={lang}
               onChange={(e) => changeLang(e.target.value)}
-              title="Traduzir para"
+              aria-label="Idioma de destino"
               className="rounded-lg border border-noctis-border bg-noctis-card px-2 py-2 text-sm text-noctis-ink"
             >
               {LANGUAGES.map((l) => (
