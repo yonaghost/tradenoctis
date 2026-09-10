@@ -1,4 +1,7 @@
 name: Android CI
+# Touch to force a path-matched push on main (see chat: initial main push had
+# no diff against the already-known commit, so the paths filter below
+# correctly found nothing to run).
 
 on:
   push:
